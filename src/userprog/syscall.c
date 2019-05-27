@@ -284,6 +284,15 @@ void sys_CHDIR(struct intr_frame *f){
 void sys_MKDIR(struct intr_frame *f){
   /* Create a directory. */
 
+  int * p =f->esp;
+  // somthing to check address
+  const char * file_name = (const char *)*(p + 1);
+  if(strcmp(file_name, "")==0){
+    f->eax = 0;
+  }
+
+
+
 }
 void sys_READDIR(struct intr_frame *f){
   /* Reads a directory entry. */

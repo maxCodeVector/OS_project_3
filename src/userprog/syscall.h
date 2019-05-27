@@ -5,7 +5,7 @@
 #include "list.h"
 
 typedef void (*syscall_function) (struct intr_frame *);
-#define SYSCALL_NUMBER 14
+#define SYSCALL_NUMBER 20
 
 void syscall_init (void);
 
