@@ -45,6 +45,12 @@ syscall_init (void)
   syscalls[SYS_SEEK] = sys_seek;
   syscalls[SYS_TELL] = sys_tell;
   syscalls[SYS_CLOSE] = sys_close;
+  /*those are syscall pro4 need*/
+  syscalls[SYS_CHDIR] = sys_CHDIR;  /* Change the current directory. */
+  syscalls[SYS_MKDIR] = sys_MKDIR;  /* Create a directory. */
+  syscalls[SYS_READDIR] = sys_READDIR;/* Reads a directory entry. */
+  syscalls[SYS_ISDIR] = sys_ISDIR;   /* Tests if a fd represents a directory. */
+  syscalls[SYS_INUMBER] = sys_INUMBER; /* Returns the inode number for a fd. */
 }
 
 // check whether page p and p+3 has been in kernel virtual memory
@@ -266,4 +272,29 @@ void sys_close(struct intr_frame * f) {
     list_remove(&openf->file_elem);
     free(openf);
   }
+}
+
+
+
+/* Project 4 only. */
+void sys_CHDIR(struct intr_frame *f){
+  /* Change the current directory. */
+
+}
+void sys_MKDIR(struct intr_frame *f){
+  /* Create a directory. */
+
+}
+void sys_READDIR(struct intr_frame *f){
+  /* Reads a directory entry. */
+
+}
+
+void sys_ISDIR(struct intr_frame *f){
+  /* Tests if a fd represents a directory. */
+
+}
+
+void sys_INUMBER(struct intr_frame *f){
+  /* Returns the inode number for a fd. */
 }

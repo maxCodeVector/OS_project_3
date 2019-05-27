@@ -29,6 +29,13 @@ void sys_seek(struct intr_frame *);
 void sys_tell(struct intr_frame *);
 void sys_close(struct intr_frame *);
 
+/* Project 4 only. */
+void sys_CHDIR(struct intr_frame *);  /* Change the current directory. */
+void sys_MKDIR(struct intr_frame *);  /* Create a directory. */
+void sys_READDIR(struct intr_frame *);/* Reads a directory entry. */
+void sys_ISDIR(struct intr_frame *);   /* Tests if a fd represents a directory. */
+void sys_INUMBER(struct intr_frame *); /* Returns the inode number for a fd. */
+
 
 struct file_node * find_file(struct list *, int);
 void exit(int);
