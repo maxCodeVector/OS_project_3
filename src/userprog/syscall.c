@@ -290,9 +290,8 @@ void sys_MKDIR(struct intr_frame *f){
   if(strcmp(file_name, "")==0){
     f->eax = 0;
   }
-
-
-
+  bool ok = filesys_dir_create(file_name, 0);
+  f->eax = ok;
 }
 void sys_READDIR(struct intr_frame *f){
   /* Reads a directory entry. */
