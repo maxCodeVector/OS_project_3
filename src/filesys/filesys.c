@@ -58,6 +58,44 @@ filesys_create (const char *name, off_t initial_size)
   return success;
 }
 
+// /* Creates a file named NAME with the given INITIAL_SIZE.
+//    Returns true if successful, false otherwise.
+//    Fails if a file named NAME already exists,
+//    or if internal memory allocation fails. */
+// bool
+// file_create (const char *name, off_t initial_size) 
+// {
+//   struct dir *dir;
+//   char base_name[NAME_MAX + 1];
+//   block_sector_t inode_sector;
+
+//   bool success = (resolve_name_to_entry (name, &dir, base_name)
+//                   && free_map_allocate (&inode_sector));
+//   if (success) 
+//     {
+//       struct inode *inode;
+//       if (type == FILE_INODE)
+//         inode = file_create (inode_sector, initial_size);
+//       else
+//         inode = dir_create (inode_sector,
+//                             inode_get_inumber (dir_get_inode (dir))); 
+//       if (inode != NULL)
+//         {
+//           success = dir_add (dir, base_name, inode_sector);
+//           if (!success)
+//             inode_remove (inode);
+//           inode_close (inode);
+//         }
+//       else
+//         success = false;
+//     }
+//   dir_close (dir);
+
+//   return success;
+// }
+
+
+
 /* Opens the file with the given NAME.
    Returns the new file if successful or a null pointer
    otherwise.
