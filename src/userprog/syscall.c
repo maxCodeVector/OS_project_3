@@ -282,7 +282,10 @@ void sys_close(struct intr_frame * f) {
 /* Project 4 only. */
 void sys_CHDIR(struct intr_frame *f){
   /* Change the current directory. */
-
+  int * p =f->esp;
+  check_func_args((void *)(p + 1), 1);
+  const char * udir = (const char *)*(p + 1);
+  f->eax = filesys_chdir(udir);
 }
 void sys_MKDIR(struct intr_frame *f){
   /* Create a directory. */

@@ -13,6 +13,7 @@
 struct block *fs_device;
 
 static void do_format (void);
+static struct inode * name_to_inode (const char *name);
 
 /* Initializes the file system module.
    If FORMAT is true, reformats the file system. */
@@ -251,7 +252,7 @@ filesys_open (const char *name)
          There's no name part at all, so resolve_name_to_entry()
          would reject it entirely.
          Special case it. */
-      return inode_open (ROOT_DIR_SECTOR);
+      return file_open(inode_open (ROOT_DIR_SECTOR));
     }
   else 
     {
@@ -312,4 +313,52 @@ do_format (void)
 
   free_map_close ();
   printf ("done.\n");
+}
+
+/* Change current directory to NAME.
+   Return true if successful, false on failure. */
+bool
+filesys_chdir (const char *name) 
+{
+  struct dir *dir = dir_open (name_to_inode (name));
+  if (dir != NULL) 
+    {
+      dir_close (thread_current ()->wd);
+      thread_current ()->wd = dir;
+      return true;
+    }
+  else
+    return false;
+}
+
+
+/* Resolves relative or absolute file NAME to an inode.
+   Returns an inode if successful, or a null pointer on failure.
+   The caller is responsible for closing the returned inode. */
+static struct inode *
+name_to_inode (const char *name)
+{
+  if (name[0] == '/' && name[strspn (name, "/")] == '\0') 
+    {
+      /* The name represents the root directory.
+         There's no name part at all, so resolve_name_to_entry()
+         would reject it entirely.
+         Special case it. */
+      return inode_open (ROOT_DIR_SECTOR);
+    }
+  else 
+    {
+      struct dir *dir;
+      char base_name[NAME_MAX + 1];
+
+      if (resolve_name_to_entry (name, &dir, base_name)) 
+        {
+          struct inode *inode;
+          dir_lookup (dir, base_name, &inode);
+          dir_close (dir);
+          return inode; 
+        }
+      else
+        return NULL;
+    }
 }
