@@ -8,10 +8,10 @@
 */
 void filesys_cache_init(void)
 {
-  list_init(&filesys_cache);
-  lock_init(&filesys_cache_lock);
-  filesys_cache_size = 0;
-  thread_create("filesys_cache_writeback", 0, write_cache_back_loop, NULL);
+  // list_init(&filesys_cache);
+  // lock_init(&filesys_cache_lock);
+  // filesys_cache_size = 0;
+  // thread_create("filesys_cache_writeback", 0, write_cache_back_loop, NULL);
 }
 
 /* return the cache block with block sector is SECTOR 
