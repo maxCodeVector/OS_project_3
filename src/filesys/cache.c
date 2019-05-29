@@ -42,7 +42,7 @@ struct cache_entry *filesys_cache_block_get(block_sector_t sector,
   if (c)
   {
     c->open_cnt++;
-    c->dirty |= dirty; //???
+    c->dirty |= dirty;
     c->accessed = true;
     lock_release(&filesys_cache_lock);
     return c;

@@ -11,6 +11,8 @@
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
 
+#include "filesys/inode.h"
+
 /* List files in the root directory. */
 void
 fsutil_ls (char **argv UNUSED) 
@@ -118,7 +120,7 @@ fsutil_extract (char **argv UNUSED)
           printf ("Putting '%s' into the file system...\n", file_name);
 
           /* Create destination file. */
-          if (!filesys_create (file_name, size))
+          if (!filesys_create (file_name, size, FILE_TYPE))
             PANIC ("%s: create failed", file_name);
           dst = filesys_open (file_name);
           if (dst == NULL)
