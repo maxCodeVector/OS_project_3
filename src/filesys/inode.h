@@ -12,9 +12,8 @@
 struct bitmap;
 
 void inode_init (void);
-bool inode_formate_create (block_sector_t, off_t);
 
-
+struct node* inode_cache_create (block_sector_t sector, uint32_t is_file);
 struct inode * inode_create (block_sector_t sector, off_t length, uint32_t is_file);
 
 struct inode *inode_open (block_sector_t);

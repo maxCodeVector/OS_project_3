@@ -84,40 +84,29 @@ inode_init (void)
    device.
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
-bool
-inode_formate_create (block_sector_t sector, off_t length)
+struct node*
+inode_cache_create (block_sector_t sector, uint32_t is_file)
 {
-  struct inode_disk *disk_inode = NULL;
-  bool success = false;
+  struct cache_block *block;
+  struct inode_disk *disk_inode;
+  struct inode *inode;
 
-  ASSERT (length >= 0);
+  block = cache_lock (sector, EXCLUSIVE);
 
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
+  disk_inode = cache_zero (block);
+  disk_inode->is_file = is_file;
+  disk_inode->length = 0;
+  disk_inode->magic = INODE_MAGIC;
+  cache_dirty (block);
+  cache_unlock (block);
 
-  disk_inode = calloc (1, sizeof *disk_inode);
-  if (disk_inode != NULL)
-    {
-      size_t sectors = bytes_to_sectors (length);
-      disk_inode->length = length;
-      disk_inode->magic = INODE_MAGIC;
-      if (free_map_allocate (sectors, &disk_inode->start)) 
-        {
-          block_write (fs_device, sector, disk_inode);
-          if (sectors > 0) 
-            {
-              static char zeros[BLOCK_SECTOR_SIZE];
-              size_t i;
-              
-              for (i = 0; i < sectors; i++) 
-                block_write (fs_device, disk_inode->start + i, zeros);
-            }
-          success = true; 
-        } 
-      free (disk_inode);
-    }
-  return success;
+  inode = inode_open (sector);
+  if (inode == NULL)
+    free_map_release (sector, 1);
+  return inode;
 }
 
 
