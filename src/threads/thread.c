@@ -302,7 +302,9 @@ thread_exit (void)
   intr_disable ();
 
   // print exit information
-  printf("%s: exit(%d)\n",thread_name(),thread_current()->exit_status);
+  if( thread_current()->parent->exec_status){
+    printf("%s: exit(%d)\n",thread_name(),thread_current()->exit_status);
+  }
   // let parent child traverse to find the corresponding child thread
   // for thread_current()
   // to update the child thread struct exit status

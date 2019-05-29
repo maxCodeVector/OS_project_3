@@ -137,7 +137,10 @@ void sys_create(struct intr_frame * f) {
 
   acquire_file_lock();
   // thread_exit ();
-  f->eax = filesys_create((const char *)*(p + 1),*(p + 2));
+  char * name = (const char *)*(p + 1);
+  off_t size = *(p + 2);
+  bool ok = filesys_create(name, size);
+  f->eax = ok;
   release_file_lock();
 }
 

@@ -39,27 +39,28 @@ void
 filesys_done (void) 
 {
   free_map_close ();
+  cache_flush ();
 }
 
 /* Creates a file named NAME with the given INITIAL_SIZE.
    Returns true if successful, false otherwise.
    Fails if a file named NAME already exists,
    or if internal memory allocation fails. */
-bool
-filesys_create (const char *name, off_t initial_size) 
-{
-  block_sector_t inode_sector = 0;
-  struct dir *dir = dir_open_root ();
-  bool success = (dir != NULL
-                  && free_map_allocate (1, &inode_sector)
-                  && inode_create (inode_sector, initial_size, FILE_TYPE)
-                  && dir_add (dir, name, inode_sector));
-  if (!success && inode_sector != 0) 
-    free_map_release (inode_sector, 1);
-  dir_close (dir);
+// bool
+// filesys_create (const char *name, off_t initial_size) 
+// {
+//   block_sector_t inode_sector = 0;
+//   struct dir *dir = dir_open_root ();
+//   bool success = (dir != NULL
+//                   && free_map_allocate (1, &inode_sector)
+//                   && inode_create (inode_sector, initial_size, FILE_TYPE)
+//                   && dir_add (dir, name, inode_sector));
+//   if (!success && inode_sector != 0) 
+//     free_map_release (inode_sector, 1);
+//   dir_close (dir);
 
-  return success;
-}
+//   return success;
+// }
 
 /* Extracts a file name part from *SRCP into PART,
    and updates *SRCP so that the next call will return the next
@@ -175,6 +176,35 @@ resolve_name_to_entry (const char *name,
 
 
 bool
+filesys_create (const char *name, off_t initial_size) 
+{
+  struct dir *dir;
+  char base_name[NAME_MAX + 1];
+  block_sector_t inode_sector;  // new mallocate sector space to store new dir
+
+  bool success = (resolve_name_to_entry (name, &dir, base_name)
+                  && free_map_allocate (1, &inode_sector));
+  if (success) 
+    {
+      struct inode *inode;
+      inode = file_create (inode_sector, initial_size); 
+      if (inode != NULL)
+        {
+          success = dir_add (dir, base_name, inode_sector);
+          if (!success)
+            inode_remove (inode);
+          inode_close (inode);
+        }
+      else
+        success = false;
+        
+    }
+  dir_close (dir);
+
+  return success;
+}
+
+bool
 filesys_dir_create (const char *name, off_t initial_size) 
 {
   struct dir *dir;
@@ -205,7 +235,6 @@ filesys_dir_create (const char *name, off_t initial_size)
 }
 
 
-
 /* Opens the file with the given NAME.
    Returns the new file if successful or a null pointer
    otherwise.
@@ -214,14 +243,41 @@ filesys_dir_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
-  struct dir *dir = dir_open_root ();
-  struct inode *inode = NULL;
 
-  if (dir != NULL)
-    dir_lookup (dir, name, &inode);
-  dir_close (dir);
 
-  return file_open (inode);
+   if (name[0] == '/' && name[strspn (name, "/")] == '\0') 
+    {
+      /* The name represents the root directory.
+         There's no name part at all, so resolve_name_to_entry()
+         would reject it entirely.
+         Special case it. */
+      return inode_open (ROOT_DIR_SECTOR);
+    }
+  else 
+    {
+      struct dir *dir;
+      char base_name[NAME_MAX + 1];
+
+      // struct dir *dir = dir_open_root ();
+      // struct inode *inode = NULL;
+
+      // if (dir != NULL){
+      //   dir_lookup (dir, name, &inode);
+      // }
+      // dir_close (dir);
+
+      // return file_open (inode);
+
+      if (resolve_name_to_entry (name, &dir, base_name)) 
+        {
+          struct inode *inode;
+          dir_lookup (dir, base_name, &inode);
+          dir_close (dir);
+          return file_open(inode); 
+        }
+      else
+        return NULL;
+    }
 }
 
 /* Deletes the file named NAME.
