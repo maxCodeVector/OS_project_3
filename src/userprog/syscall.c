@@ -14,6 +14,8 @@
 #include "process.h"
 #include "pagedir.h"
 #include "syscall.h"
+#include "filesys/inode.h"
+#include "filesys/file.h"
 
 // syscall array
 syscall_function syscalls[SYSCALL_NUMBER];
@@ -232,6 +234,11 @@ void sys_write(struct intr_frame * f) {
     // check whether the write file is valid
     if (openf){
       acquire_file_lock();
+      bool is_file = is_really_file(openf->file);
+      if(!is_file){
+        f->eax = -1;
+        return;
+      }
       f->eax = file_write(openf->file, buffer2, size2);
       release_file_lock();
     } else
@@ -301,11 +308,30 @@ void sys_MKDIR(struct intr_frame *f){
 }
 void sys_READDIR(struct intr_frame *f){
   /* Reads a directory entry. */
+  int *p = f->esp;
+  int fd = *(p + 1);
+  const char * dir_name = (const char *)*(p + 2);
+
+  // struct file_descriptor *fd = lookup_dir_fd (handle);
+  // char name[NAME_MAX + 1];
+  // bool ok = dir_readdir (fd->dir, name);
+  // if (ok)
+  //   copy_out (uname, name, strlen (name) + 1);
+  // return ok;
 
 }
 
 void sys_ISDIR(struct intr_frame *f){
   /* Tests if a fd represents a directory. */
+  int * p =f->esp;
+  int fd = *(p + 1);
+  struct file_node * openf = find_file(&thread_current()->files, fd);
+  // check whether the write file is valid
+  if (openf){
+    f->eax = !is_really_file(openf->file);
+  }else{
+    f->eax = false;
+  }
 
 }
 

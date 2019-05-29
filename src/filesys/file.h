@@ -3,6 +3,9 @@
 
 #include "filesys/off_t.h"
 #include "devices/block.h"
+#include <debug.h>
+#include "filesys/inode.h"
+#include "threads/malloc.h"
 
 struct inode;
 
@@ -29,5 +32,10 @@ off_t file_length (struct file *);
 
 /* Create a file */
 struct inode *file_create (block_sector_t sector, off_t length);
+
+/*add by hya, to get file type*/
+bool is_really_file(struct file* file);
+
+/* An open file. */
 
 #endif /* filesys/file.h */

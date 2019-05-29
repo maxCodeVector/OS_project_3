@@ -13,6 +13,8 @@
 struct block *fs_device;
 
 static void do_format (void);
+
+/* add by hya: to change a file/dir name to coresponding inode */
 static struct inode * name_to_inode (const char *name);
 
 /* Initializes the file system module.
@@ -63,7 +65,7 @@ filesys_done (void)
 //   return success;
 // }
 
-/* Extracts a file name part from *SRCP into PART,
+/* hya add: Extracts a file name part from *SRCP into PART,
    and updates *SRCP so that the next call will return the next
    file name part.
    Returns 1 if successful, 0 at end of string, -1 for a too-long
@@ -98,11 +100,10 @@ get_next_part (char part[NAME_MAX], const char **srcp)
   return 1;
 }
 
-
-/* Resolves relative or absolute file NAME.
+/* hya add: Resolves relative or absolute file NAME.
    Returns true if successful, false on failure.
    Stores the directory corresponding to the name into *DIRP,
-   and the file name part into BASE_NAME. */
+   and the file name part into BASE_NAME.*/
 static bool
 resolve_name_to_entry (const char *name,
                        struct dir **dirp, char base_name[NAME_MAX + 1]) 
@@ -176,6 +177,7 @@ resolve_name_to_entry (const char *name,
 }
 
 
+/* add by hya: parse path and create the file*/
 bool
 filesys_create (const char *name, off_t initial_size) 
 {
@@ -205,6 +207,7 @@ filesys_create (const char *name, off_t initial_size)
   return success;
 }
 
+/* add by hya: parse path and create the dir */
 bool
 filesys_dir_create (const char *name, off_t initial_size) 
 {
@@ -236,7 +239,7 @@ filesys_dir_create (const char *name, off_t initial_size)
 }
 
 
-/* Opens the file with the given NAME.
+/* modified by hya:, Opens the file with the given NAME.
    Returns the new file if successful or a null pointer
    otherwise.
    Fails if no file named NAME exists,
@@ -295,7 +298,7 @@ filesys_remove (const char *name)
   return success;
 }
 
-/* Formats the file system. */
+/* modified by hya: Formats the file system. */
 static void
 do_format (void)
 {
@@ -315,7 +318,7 @@ do_format (void)
   printf ("done.\n");
 }
 
-/* Change current directory to NAME.
+/* add by hya: Change current directory to NAME.
    Return true if successful, false on failure. */
 bool
 filesys_chdir (const char *name) 
@@ -332,7 +335,7 @@ filesys_chdir (const char *name)
 }
 
 
-/* Resolves relative or absolute file NAME to an inode.
+/* add by hya:  Resolves relative or absolute file NAME to an inode.
    Returns an inode if successful, or a null pointer on failure.
    The caller is responsible for closing the returned inode. */
 static struct inode *

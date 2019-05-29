@@ -3,14 +3,6 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 
-/* An open file. */
-struct file 
-  {
-    struct inode *inode;        /* File's inode. */
-    off_t pos;                  /* Current position. */
-    bool deny_write;            /* Has file_deny_write() been called? */
-  };
-
 /* Creates a file in the SECTOR, with LENGTH bytes long. 
    Returns inode for the file on success, null pointer on failure.
 */
@@ -27,6 +19,13 @@ file_create (block_sector_t sector, off_t length)
     }
   return inode;
 }
+
+struct file 
+  {
+    struct inode *inode;        /* File's inode. */
+    off_t pos;                  /* Current position. */
+    bool deny_write;            /* Has file_deny_write() been called? */
+  };
 
 
 /* Opens a file for the given INODE, of which it takes ownership,
@@ -183,4 +182,8 @@ file_tell (struct file *file)
 {
   ASSERT (file != NULL);
   return file->pos;
+}
+
+bool is_really_file(struct file* file){
+  return file->inode->data.is_file==FILE_TYPE;
 }
