@@ -6,32 +6,30 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
-#include "cache.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
-#define DIRECT_POINTER_NUM 123
+/* Poiters number */
+#define PTRS_PER_BLOCK 128
+
+#define DIRECT_POINTER_NUM 12
 #define SINGLE_POINTER_NUM 1
 #define DOUBLE_POINTER_NUM 1
-#define TOTAL_POINTER_NUM 125
+#define TOTAL_POINTER_NUM (DIRECT_POINTER_NUM + SINGLE_POINTER_NUM + DOUBLE_POINTER_NUM)
 
-// 512 byte / 1 byte
-#define PTRS_PER_SECTOR 128
-
-#define IS_FILE 1
-#define IS_DIR 0
-
+#define MAX_FILE_SIZE 8460288 // in bytes
 
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
-    // block_sector_t start;               /* First data sector. */
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
-    uint32_t sectors[TOTAL_POINTER_NUM];               /* Not used. */
+    block_sector_t pointers[TOTAL_POINTER_NUM];
+
     uint32_t is_file;                    /* 1 for file, 0 for dir */
+    uint32_t unused[125 - TOTAL_POINTER_NUM];               /* Not used. */
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -42,6 +40,8 @@ bytes_to_sectors (off_t size)
   return DIV_ROUND_UP (size, BLOCK_SECTOR_SIZE);
 }
 
+/* NEED: return the correct sector with indirect map */ 
+
 /* In-memory inode. */
 struct inode 
   {
@@ -51,23 +51,52 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
-
-
   };
 
-// /* Returns the block device sector that contains byte offset POS
-//    within INODE.
-//    Returns -1 if INODE does not contain data for a byte at offset
-//    POS. */
-// static block_sector_t
-// byte_to_sector (const struct inode *inode, off_t pos) 
-// {
-//   ASSERT (inode != NULL);
-//   if (pos < inode->data.length)
-//     return inode->data.start + pos / BLOCK_SECTOR_SIZE;
-//   else
-//     return -1;
-// }
+/* Returns the block device sector that contains byte offset POS
+   within INODE.
+   Returns -1 if INODE does not contain data for a byte at offset
+   POS. */
+static block_sector_t
+byte_to_sector (const struct inode *inode, off_t pos) 
+{
+  ASSERT (inode != NULL);
+
+  if(pos < inode->data.length) {
+    if(pos < DIRECT_POINTER_NUM * BLOCK_SECTOR_SIZE) 
+    {
+      return inode->data.pointers[pos / BLOCK_SECTOR_SIZE];
+    } 
+    else if (pos < (PTRS_PER_BLOCK + DIRECT_POINTER_NUM) * BLOCK_SECTOR_SIZE) 
+    {
+      uint32_t level1_index;
+      uint32_t level1_table[PTRS_PER_BLOCK];
+      pos -= DIRECT_POINTER_NUM * BLOCK_SECTOR_SIZE;
+      level1_index = pos / BLOCK_SECTOR_SIZE;
+      block_read(fs_device, inode->data.pointers[TOTAL_POINTER_NUM - 2],
+                 &level1_table);
+      return level1_table[level1_index];
+    }
+    else 
+    {
+      uint32_t level_index;
+      uint32_t level_table[PTRS_PER_BLOCK];
+      // read the first level pointer table
+      block_read(fs_device, inode->data.pointers[TOTAL_POINTER_NUM - 1],
+                 &level_table);
+      pos -= (DIRECT_POINTER_NUM + PTRS_PER_BLOCK) * BLOCK_SECTOR_SIZE;
+      level_index = pos / (PTRS_PER_BLOCK * BLOCK_SECTOR_SIZE);
+      // read the second level pointer table
+      block_read(fs_device, level_table[level_index], &level_table);
+      pos -= level_index * (PTRS_PER_BLOCK * BLOCK_SECTOR_SIZE);
+      return level_table[pos / BLOCK_SECTOR_SIZE];
+    }
+  }
+  else 
+  {
+    return -1;
+  }
+}
 
 /* List of open inodes, so that opening a single inode twice
    returns the same `struct inode'. */
@@ -86,31 +115,78 @@ inode_init (void)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, uint32_t is_file)
+inode_create (block_sector_t sector, off_t length, uint32_t is_file)
 {
-  struct cache_block *block;
-  struct inode_disk *disk_inode;
-  struct inode *inode;
+  struct inode_disk *disk_inode = NULL;
+  bool success = false;
 
-  block = cache_lock (sector, EXCLUSIVE);
+  ASSERT (length >= 0);
 
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
 
-  /* Allocate inode in cache */
-  disk_inode = cache_zero (block);
-  disk_inode->is_file = is_file;
-  disk_inode->length = 0;
-  disk_inode->magic = INODE_MAGIC;
-  cache_dirty (block);
-  cache_unlock (block);
-
-  inode = inode_open (sector);
-  if (inode == NULL)
-    free_map_release_at (sector);
-  return inode;
+  disk_inode = calloc (1, sizeof *disk_inode);
+  if (disk_inode != NULL)
+    {
+      size_t sectors = bytes_to_sectors (length);
+      disk_inode->length = length;
+      disk_inode->magic = INODE_MAGIC;
+      if (free_map_allocate (sectors, &disk_inode->start)) 
+        {
+          block_write (fs_device, sector, disk_inode);
+          if (sectors > 0) 
+            {
+              static char zeros[BLOCK_SECTOR_SIZE];
+              size_t i;
+              
+              for (i = 0; i < sectors; i++) 
+                block_write (fs_device, disk_inode->start + i, zeros);
+            }
+          success = true; 
+        } 
+      free (disk_inode);
+    }
+  return success;
 }
+
+bool
+inode_create_file (block_sector_t sector, off_t length)
+{
+  struct inode_disk *disk_inode = NULL;
+  bool success = false;
+
+  ASSERT (length >= 0);
+
+  /* If this assertion fails, the inode structure is not exactly
+     one sector in size, and you should fix that. */
+  ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
+
+  disk_inode = calloc (1, sizeof *disk_inode);
+  if (disk_inode != NULL)
+    {
+      size_t sectors = bytes_to_sectors (length);
+      disk_inode->length = length;
+      disk_inode->magic = INODE_MAGIC;
+      if (free_map_allocate (sectors, &disk_inode->start)) 
+        {
+          block_write (fs_device, sector, disk_inode);
+          if (sectors > 0) 
+            {
+              static char zeros[BLOCK_SECTOR_SIZE];
+              size_t i;
+              
+              for (i = 0; i < sectors; i++) 
+                block_write (fs_device, disk_inode->start + i, zeros);
+            }
+          success = true; 
+        } 
+      free (disk_inode);
+    }
+  return success;
+}
+
+
 
 /* Reads an inode from SECTOR
    and returns a `struct inode' that contains it.
@@ -183,63 +259,13 @@ inode_close (struct inode *inode)
       /* Deallocate blocks if removed. */
       if (inode->removed) 
         {
-          // free_map_release (inode->sector, 1);
-          // free_map_release (inode->data.start,
-          //                   bytes_to_sectors (inode->data.length)); 
+          free_map_release (inode->sector, 1);
+          free_map_release (inode->data.start,
+                            bytes_to_sectors (inode->data.length)); 
         }
 
       free (inode); 
     }
-}
-
-/* (Added)
-   Deallocates SECTOR and anything it points to recursively.
-   LEVEL is 2 if SECTOR is doubly indirect,
-   or 1 if SECTOR is indirect,
-   or 0 if SECTOR is a data sector. */
-static void
-deallocate_recursive (block_sector_t sector, int level) 
-{
-  if (level > 0) 
-    {
-      struct cache_block *block = cache_lock (sector, EXCLUSIVE);
-      block_sector_t *pointers = cache_read (block);
-      int i;
-      for (i = 0; i < PTRS_PER_SECTOR; i++)
-        if (pointers[i])
-          deallocate_recursive (sector, level - 1);
-      cache_unlock (block);
-    }
-  
-  cache_free (sector);
-  free_map_release_at (sector);
-}
-
-/* (Added)
-  Deallocates the blocks allocated for INODE. 
-  */
-static void
-deallocate_inode (const struct inode *inode)
-{
-  struct cache_block *block = cache_lock (inode->sector, EXCLUSIVE);
-  struct inode_disk *disk_inode = cache_read (block);
-  int i;
-
-  // recursively free the memeory
-  for (i = 0; i < TOTAL_POINTER_NUM; i++)
-    if (disk_inode->sectors[i]) 
-      {
-        int level = 0;
-        if (i >= DIRECT_POINTER_NUM) {
-          level ++;
-        } 
-        if (i >= DIRECT_POINTER_NUM + SINGLE_POINTER_NUM) {
-          level ++;
-        }
-        deallocate_recursive (disk_inode->sectors[i], level); 
-      }
-  cache_unlock (block);
-  deallocate_recursive (inode->sector, 0);
 }
 
 /* Marks INODE to be deleted when it is closed by the last caller who
