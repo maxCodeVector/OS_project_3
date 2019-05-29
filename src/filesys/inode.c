@@ -51,6 +51,10 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
+
+    size_t level0_ptr_index;                  /* index of the pointer list */
+    size_t level1_ptr_index;               /* index of the level 1 pointer table */
+    size_t level2_ptr_index;               /* index of the level 2 pointer table */
   };
 
 /* Returns the block device sector that contains byte offset POS
@@ -121,7 +125,7 @@ inode_create (block_sector_t sector, off_t length, uint32_t is_file)
   bool success = false;
 
   ASSERT (length >= 0);
-
+  ASSERT (length <= MAX_FILE_SIZE)
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
@@ -132,19 +136,24 @@ inode_create (block_sector_t sector, off_t length, uint32_t is_file)
       size_t sectors = bytes_to_sectors (length);
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
-      if (free_map_allocate (sectors, &disk_inode->start)) 
-        {
-          block_write (fs_device, sector, disk_inode);
-          if (sectors > 0) 
-            {
-              static char zeros[BLOCK_SECTOR_SIZE];
-              size_t i;
+
+      disk_inode->is_file = is_file;
+
+      // if (free_map_allocate (sectors, &disk_inode->start)) 
+      //   {
+      //     block_write (fs_device, sector, disk_inode);
+      //     if (sectors > 0) 
+      //       {
+      //         static char zeros[BLOCK_SECTOR_SIZE];
+      //         size_t i;
               
-              for (i = 0; i < sectors; i++) 
-                block_write (fs_device, disk_inode->start + i, zeros);
-            }
-          success = true; 
-        } 
+      //         for (i = 0; i < sectors; i++) 
+      //           block_write (fs_device, disk_inode->start + i, zeros);
+      //       }
+      //     success = true; 
+      //   } 
+
+
       free (disk_inode);
     }
   return success;
@@ -425,4 +434,141 @@ off_t
 inode_length (const struct inode *inode)
 {
   return inode->data.length;
+}
+
+/** extend the file size to NEW_LENGTH (in bytes) 
+*   return NEW_LENGTH if allocated success
+*/
+off_t inode_expand(struct inode *inode, off_t new_length)
+{
+  static char zeros[BLOCK_SECTOR_SIZE];
+  size_t needed_allocated_sectors = bytes_to_data_sectors(new_length) -
+                            bytes_to_data_sectors(inode->data.length);
+
+  if (needed_allocated_sectors == 0)
+  {
+    return new_length;
+  }
+
+  /* allocate for the sector that direct pointer points to */
+  while (inode->level0_ptr_index < DIRECT_POINTER_NUM)
+  {
+    free_map_allocate(1, &inode->data.pointers[inode->level0_ptr_index]);
+    block_write(fs_device, inode->data.pointers[inode->level0_ptr_index], zeros);
+    inode->level0_ptr_index ++;
+    needed_allocated_sectors--;
+    if (needed_allocated_sectors == 0)
+    {
+      return new_length;
+    }
+  }
+  /* allocate for the sector of single indirect pointers */
+  if (inode->level0_ptr_index == DIRECT_POINTER_NUM)
+  {
+    needed_allocated_sectors = inode_expand_single_block(inode, needed_allocated_sectors);
+    if (needed_allocated_sectors == 0)
+    {
+      return new_length;
+    }
+  }
+  if (inode->level0_ptr_index == DIRECT_POINTER_NUM + SINGLE_POINTER_NUM)
+  {
+    needed_allocated_sectors = inode_expand_double_block(inode, needed_allocated_sectors);
+  }
+  return new_length - needed_allocated_sectors * BLOCK_SECTOR_SIZE;
+}
+
+size_t inode_expand_single_block(struct inode *inode, size_t needed_allocated_sectors)
+{
+  static char zeros[BLOCK_SECTOR_SIZE];
+  block_sector_t ptr_block[PTRS_PER_BLOCK];
+  if (inode->level1_ptr_index == 0)
+  {
+    free_map_allocate(1, &inode->data.pointers[inode->level0_ptr_index]);
+  }
+  else
+  {
+    block_read(fs_device, inode->data.pointers[inode->level0_ptr_index], &ptr_block);
+  }
+  while (inode->level1_ptr_index < PTRS_PER_BLOCK)
+  {
+    free_map_allocate(1, &ptr_block[inode->level1_ptr_index]);
+    block_write(fs_device, ptr_block[inode->level1_ptr_index], zeros);
+    inode->level1_ptr_index ++;
+    needed_allocated_sectors--;
+    if (needed_allocated_sectors == 0)
+    {
+      break;
+    }
+  }
+  block_write(fs_device, inode->data.pointers[inode->level1_ptr_index], &ptr_block);
+  if (inode->level1_ptr_index == PTRS_PER_BLOCK)
+  {
+    inode->level1_ptr_index = 0;
+    inode->level0_ptr_index ++;
+  }
+  return needed_allocated_sectors;
+}
+
+size_t inode_expand_double_block(struct inode *inode,
+                                          size_t needed_allocated_sectors)
+{
+  block_sector_t ptr_block[PTRS_PER_BLOCK];
+  if (inode->level2_ptr_index == 0 && inode->level1_ptr_index == 0)
+  {
+    free_map_allocate(1, &inode->data.pointers[inode->level0_ptr_index]);
+  }
+  else
+  {
+    block_read(fs_device, inode->data.pointers[inode->level0_ptr_index], &ptr_block);
+  }
+
+  while (inode->level1_ptr_index < PTRS_PER_BLOCK)
+  {
+    needed_allocated_sectors = inode_expand_double_block2(inode,
+                                                                  needed_allocated_sectors, &ptr_block);
+    if (needed_allocated_sectors == 0)
+    {
+      break;
+    }
+  }
+  block_write(fs_device, inode->data.pointers[inode->level0_ptr_index], &ptr_block);
+  return needed_allocated_sectors;
+}
+
+size_t inode_expand_double_block2(struct inode *inode,
+                                                  size_t needed_allocated_sectors,
+                                                  block_sector_t *level1_block)
+{
+  
+  static char zeros[BLOCK_SECTOR_SIZE];
+  block_sector_t level2_block[PTRS_PER_BLOCK];
+  if (inode->level2_ptr_index == 0)
+  {
+    free_map_allocate(1, &level1_block[inode->level1_ptr_index]);
+  }
+  else
+  {
+    block_read(fs_device, level1_block[inode->level1_ptr_index],
+               &level2_block);
+  }
+  while (inode->level2_ptr_index < PTRS_PER_BLOCK)
+  {
+    free_map_allocate(1, &level2_block[inode->level2_ptr_index]);
+    block_write(fs_device, level2_block[inode->level2_ptr_index],
+                zeros);
+    inode->level2_ptr_index ++;
+    needed_allocated_sectors--;
+    if (needed_allocated_sectors == 0)
+    {
+      break;
+    }
+  }
+  block_write(fs_device, level1_block[inode->level1_ptr_index], &level2_block);
+  if (inode->level2_ptr_index == PTRS_PER_BLOCK)
+  {
+    inode->level2_ptr_index = 0;
+    inode->level1_ptr_index ++;
+  }
+  return needed_allocated_sectors;
 }
