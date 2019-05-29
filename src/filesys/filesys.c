@@ -51,7 +51,7 @@ filesys_create (const char *name, off_t initial_size)
   struct dir *dir = dir_open_root ();
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
-                  && inode_create (inode_sector, initial_size)
+                  && inode_create (inode_sector, initial_size, FILE_TYPE)
                   && dir_add (dir, name, inode_sector));
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
@@ -59,42 +59,6 @@ filesys_create (const char *name, off_t initial_size)
 
   return success;
 }
-
-// /* Creates a file named NAME with the given INITIAL_SIZE.
-//    Returns true if successful, false otherwise.
-//    Fails if a file named NAME already exists,
-//    or if internal memory allocation fails. */
-// bool
-// file_create (const char *name, off_t initial_size) 
-// {
-//   struct dir *dir;
-//   char base_name[NAME_MAX + 1];
-//   block_sector_t inode_sector;
-
-//   bool success = (resolve_name_to_entry (name, &dir, base_name)
-//                   && free_map_allocate (&inode_sector));
-//   if (success) 
-//     {
-//       struct inode *inode;
-//       if (type == FILE_INODE)
-//         inode = file_create (inode_sector, initial_size);
-//       else
-//         inode = dir_create (inode_sector,
-//                             inode_get_inumber (dir_get_inode (dir))); 
-//       if (inode != NULL)
-//         {
-//           success = dir_add (dir, base_name, inode_sector);
-//           if (!success)
-//             inode_remove (inode);
-//           inode_close (inode);
-//         }
-//       else
-//         success = false;
-//     }
-//   dir_close (dir);
-
-//   return success;
-// }
 
 /* Extracts a file name part from *SRCP into PART,
    and updates *SRCP so that the next call will return the next
@@ -214,13 +178,12 @@ filesys_dir_create (const char *name, off_t initial_size)
 {
   struct dir *dir;
   char base_name[NAME_MAX + 1];
-  block_sector_t inode_sector;
+  block_sector_t inode_sector;  // new mallocate sector space to store new dir
 
   bool success = (resolve_name_to_entry (name, &dir, base_name)
                   && free_map_allocate (1, &inode_sector));
   if (success) 
     {
-      
       struct inode *inode;
       inode = dir_create (inode_sector,
                             inode_get_inumber (dir_get_inode (dir))); 
@@ -280,8 +243,16 @@ do_format (void)
 {
   printf ("Formatting file system...");
   free_map_create ();
-  if (!dir_create (ROOT_DIR_SECTOR, 16))
+  // if (!dir_create_root (ROOT_DIR_SECTOR, 16))
+  //   PANIC ("root directory creation failed");
+
+
+  /* Set up root directory. */
+  struct inode *inode = dir_create (ROOT_DIR_SECTOR, ROOT_DIR_SECTOR);
+  if (inode == NULL)
     PANIC ("root directory creation failed");
+  inode_close (inode);
+
   free_map_close ();
   printf ("done.\n");
 }
