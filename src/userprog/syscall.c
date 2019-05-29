@@ -16,6 +16,8 @@
 #include "syscall.h"
 #include "filesys/inode.h"
 #include "filesys/file.h"
+#include "lib/user/syscall.h"
+#include "filesys/directory.h"
 
 // syscall array
 syscall_function syscalls[SYSCALL_NUMBER];
@@ -209,6 +211,10 @@ void sys_read(struct intr_frame * f) {
     struct file_node * open_f = find_file(&thread_current()->files, *(p + 1));
     // check whether the read file is valid
     if (open_f){
+       if(!is_really_file(open_f->file)){
+         f->eax = -1;
+         return;
+       }
       acquire_file_lock();
       f->eax = file_read(open_f->file, buffer, size);
       release_file_lock();
@@ -312,9 +318,12 @@ void sys_READDIR(struct intr_frame *f){
   int fd = *(p + 1);
   const char * dir_name = (const char *)*(p + 2);
 
-  // struct file_descriptor *fd = lookup_dir_fd (handle);
-  // char name[NAME_MAX + 1];
-  // bool ok = dir_readdir (fd->dir, name);
+  struct file_node * openf = find_file(&thread_current()->files, fd);
+  bool ok;
+  if(openf!=NULL){
+    ok = read_dir_by_file_node(openf->file, dir_name);
+  }
+  f->eax = ok;
   // if (ok)
   //   copy_out (uname, name, strlen (name) + 1);
   // return ok;
@@ -337,4 +346,11 @@ void sys_ISDIR(struct intr_frame *f){
 
 void sys_INUMBER(struct intr_frame *f){
   /* Returns the inode number for a fd. */
+  int * p =f->esp;
+  int fd = *(p + 1);
+  struct file_node * openf = find_file(&thread_current()->files, fd);
+  // check whether the write file is valid
+  if (openf){
+    f->eax = get_inumber(openf->file);
+  }
 }

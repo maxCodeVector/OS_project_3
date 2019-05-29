@@ -119,7 +119,7 @@ resolve_name_to_entry (const char *name,
     dir = dir_open_root ();
   else
     dir = dir_reopen (thread_current ()->wd);
-  if (dir == NULL){  
+  if (dir == NULL || !is_dir_exist(dir)){  // check if this directory has been removed
     /* Return failure. */
     dir_close (dir);
     *dirp = NULL;
@@ -284,6 +284,24 @@ filesys_open (const char *name)
     }
 }
 
+/* hya add: test if it is can move, usually test dirctory*/
+bool can_move(const char* name){
+
+  struct file * file = filesys_open (name);
+  if(file==NULL){
+    return false;  // file does not exist, so need not move
+  }else if(is_really_file(file)){
+      file_close(file);
+      return true; // we don't care about file
+  }
+  struct dir* dir = dir_open(file->inode);
+  if(dir==NULL || !is_empty_dir(dir)){
+    dir_close(dir);
+    return false;
+  }
+  dir_close(dir);
+  return true;
+}
 /* Deletes the file named NAME.
    Returns true if successful, false on failure.
    Fails if no file named NAME exists,
@@ -291,8 +309,19 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  struct dir *dir = dir_open_root ();
-  bool success = dir != NULL && dir_remove (dir, name);
+  // struct dir *dir = dir_open_root ();
+  // bool success = dir != NULL && dir_remove (dir, name);
+
+  if(!can_move(name)){
+    return false;
+  }
+  struct dir *dir;
+  char base_name[NAME_MAX + 1];
+  bool success = resolve_name_to_entry (name, &dir, base_name);
+  if(success){
+    success = dir_remove(dir, base_name);
+  }
+
   dir_close (dir); 
 
   return success;

@@ -2,6 +2,7 @@
 #include <debug.h>
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "filesys/directory.h"
 
 /* Creates a file in the SECTOR, with LENGTH bytes long. 
    Returns inode for the file on success, null pointer on failure.
@@ -19,13 +20,6 @@ file_create (block_sector_t sector, off_t length)
     }
   return inode;
 }
-
-struct file 
-  {
-    struct inode *inode;        /* File's inode. */
-    off_t pos;                  /* Current position. */
-    bool deny_write;            /* Has file_deny_write() been called? */
-  };
 
 
 /* Opens a file for the given INODE, of which it takes ownership,
@@ -186,4 +180,15 @@ file_tell (struct file *file)
 
 bool is_really_file(struct file* file){
   return file->inode->data.is_file==FILE_TYPE;
+}
+
+bool read_dir_by_file_node(struct file* file, char* name){
+  if(is_really_file(file)){
+    return false;
+  }
+  return dir_readdir(dir_open(file->inode), name);
+}
+
+int get_inumber(struct file* file){
+  return file->inode->sector;
 }
