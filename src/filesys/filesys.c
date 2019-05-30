@@ -152,7 +152,7 @@ resolve_name_to_entry (const char *name,
 
       dir_close (dir);
       dir = dir_open (inode);
-      if (dir == NULL){
+      if (dir == NULL || !is_dir_exist(dir)){
         /* Return failure. */
         dir_close (dir);
         *dirp = NULL;

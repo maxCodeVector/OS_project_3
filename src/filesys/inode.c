@@ -127,7 +127,7 @@ inode_create (block_sector_t sector, off_t length, uint32_t is_file)
     inode = inode_open (sector);
     if (inode == NULL)
       free_map_release_at (sector);
-    }
+  }
   return inode;
 }
 
@@ -202,9 +202,9 @@ inode_close (struct inode *inode)
       /* Deallocate blocks if removed. */
       if (inode->removed) 
         {
-          // free_map_release (inode->sector, 1);
-          // free_map_release (inode->data.start,
-          //                   bytes_to_sectors (inode->data.length)); 
+          free_map_release (inode->sector, 1);
+          free_map_release (inode->data.start,
+                            bytes_to_sectors (inode->data.length)); 
         }
 
       free (inode); 
