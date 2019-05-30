@@ -27,8 +27,9 @@ filesys_init (bool format)
     PANIC ("No file system device found, can't initialize file system.");
 
   inode_init ();
-  cache_init();
   free_map_init ();
+  // initial cache
+  filesys_cache_init();
 
   if (format) 
     do_format ();
@@ -41,8 +42,10 @@ filesys_init (bool format)
 void
 filesys_done (void) 
 {
+  // write back all cache t
+  filesys_cache_write_to_disk(true);
+  
   free_map_close ();
-  cache_flush ();
 }
 
 /* Creates a file named NAME with the given INITIAL_SIZE.
