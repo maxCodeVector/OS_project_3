@@ -326,6 +326,10 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       lock_acquire(&inode->extend_lock);
     }
     inode->length = inode_extend(inode, offset + size);
+
+    inode->data.level0_ptr_index = inode->level0_ptr_index;
+    inode->data.level1_ptr_index = inode->level1_ptr_index;
+    inode->data.level2_ptr_index = inode->level2_ptr_index;
     inode->data.length = inode->length;
 
     // write the extended information to the disk
