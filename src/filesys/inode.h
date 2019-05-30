@@ -5,9 +5,20 @@
 #include "filesys/off_t.h"
 #include "devices/block.h"
 #include <list.h>
+#include "threads/synch.h"
+
 
 #define FILE_TYPE 1
 #define DIR_TYPE 0 
+
+
+#define DIRECT_POINTER_NUM 12
+#define SINGLE_POINTER_NUM 1
+#define DOUBLE_POINTER_NUM 1
+#define TOTAL_POINTER_NUM (DIRECT_POINTER_NUM + SINGLE_POINTER_NUM + DOUBLE_POINTER_NUM)
+
+#define MAX_FILE_SIZE 8460288 // in bytes
+#define PTRS_PER_SECTOR 128 // how many sectors a block can point: 512 byte / 4 byte
 
 struct bitmap;
 
@@ -18,9 +29,14 @@ struct inode_disk
     block_sector_t start;               /* First data sector. */
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
-    // uint32_t sectors[TOTAL_POINTER_NUM];               /* Not used. */
+     
+    block_sector_t pointers[TOTAL_POINTER_NUM];
+    uint32_t level0_ptr_index;                  /* index of the pointer list */
+    uint32_t level1_ptr_index;               /* index of the level 1 pointer table */
+    uint32_t level2_ptr_index;               /* index of the level 2 pointer table */
+
     uint32_t is_file;                    /* 1 for file, 0 for dir */
-    uint32_t not_used[124];
+    uint32_t not_used[121 - TOTAL_POINTER_NUM];
   };
 
 
@@ -34,6 +50,13 @@ struct inode
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
 
+
+    struct lock extend_lock;
+    size_t level0_ptr_index;                  /* index of the pointer list */
+    size_t level1_ptr_index;               /* index of the level 1 pointer table */
+    size_t level2_ptr_index;               /* index of the level 2 pointer table */
+    off_t length;                       /* File size in bytes. */
+    off_t length_for_read; 
 
   };
 void inode_init (void);
