@@ -14,7 +14,6 @@
 #include "process.h"
 #include "pagedir.h"
 #include "syscall.h"
-#include "filesys/inode.h"
 
 // syscall array
 syscall_function syscalls[SYSCALL_NUMBER];
@@ -132,7 +131,7 @@ void sys_create(struct intr_frame * f) {
 
   acquire_file_lock();
   // thread_exit ();
-  f->eax = filesys_create((const char *)*(p + 1),*(p + 2), 1);
+  f->eax = filesys_create((const char *)*(p + 1),*(p + 2));
   release_file_lock();
 }
 
