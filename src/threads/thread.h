@@ -4,7 +4,9 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include <threads/synch.h>
+
+// Needed for timer_sleep()
+struct list sleep_list;
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -24,13 +26,6 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-
-struct child_thread {
-  struct list_elem child_thread_elem;
-  int exit_status;
-  int tid;
-};
-
 
 /* A kernel thread or user process.
 
@@ -109,20 +104,27 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
+    // Needed to keep track of locks thread holds
+    struct list lock_list;
 
-    struct semaphore exec_sema; // semaphore for child thread load
-    struct semaphore child_sema; // semaphore for child thread exit
+    // Needed for file system sys calls
+    struct list file_list;
+    int fd;
 
-    bool exec_status; // flag for child load success
-    struct thread* parent; // parent thread
-    struct list childs; // child thread
-    int exit_status; // the exit status
-    struct list files;// the list of opened files
-    struct file * executable; // the thread executable file 
-    int max_fd; // the file descriptor used by the thread
+    // Needed for wait / exec sys calls
+    struct list child_list;
+    tid_t parent;
+    // Points to child_process struct in parent's child list
+    struct child_process* cp;
+
+    // Needed for denying writes to executables
+    struct file* executable;
+
+    // Needed for timer_sleep()
+    int64_t ticks;
+    
+    struct dir *cwd;
   };
-
-
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -160,10 +162,11 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-void acquire_file_lock(void);
-void release_file_lock(void);
+bool thread_alive (int pid);
+void release_locks (void);
 
-
-int child_thread_wait(int);
+bool cmp_ticks (const struct list_elem *a,
+		const struct list_elem *b,
+		void *aux UNUSED);
 
 #endif /* threads/thread.h */
