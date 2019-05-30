@@ -422,6 +422,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     }
     inode->length = inode_extend(inode, offset + size);
     inode->data.length = inode->length;
+    block_write(fs_device, inode->sector, &inode->data);
+
     if (inode->data.is_file)
     {
       lock_release(&inode->extend_lock);

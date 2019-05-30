@@ -39,7 +39,7 @@ dir_create_root (block_sector_t sector, size_t entry_cnt)
 struct inode *
 dir_create (block_sector_t sector, block_sector_t parent_sector)
 {
-  struct inode *inode = inode_create (sector, 320, DIR_TYPE);
+  struct inode *inode = inode_create (sector, 2 * sizeof(struct dir_entry), DIR_TYPE);
 
 
   if (inode != NULL) 
