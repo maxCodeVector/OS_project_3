@@ -587,7 +587,7 @@ size_t inode_expand_single_block(struct inode *inode, size_t needed_allocated_se
 size_t inode_expand_double_block(struct inode *inode,
                                           size_t needed_allocated_sectors)
 {
-  block_sector_t ptr_block[FREE_MAP_SECTOR];
+  block_sector_t ptr_block[PTRS_PER_SECTOR];
   if (inode->level2_ptr_index == 0 && inode->level1_ptr_index == 0)
   {
     free_map_allocate(1, &inode->data.pointers[inode->level0_ptr_index]);
