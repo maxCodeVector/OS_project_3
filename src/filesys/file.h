@@ -44,7 +44,7 @@ struct inode *file_create (block_sector_t sector, off_t length);
 
 /*add by hya, to get file type*/
 bool is_really_file(struct file* file);
-bool read_dir_by_file_node(struct file* file, char* name);
+bool read_dir_by_file_node(struct file* file, char* name, int order);
 int get_inumber(struct file* file);
 
 /* An open file. */

@@ -173,6 +173,7 @@ void sys_open(struct intr_frame * f) {
     struct file_node *fn = malloc(sizeof(struct file_node));
     fn->fd = t->max_fd++;
     fn->file = open_f;
+    fn->read_dir_cnt = 0;
     // put in file list of the corresponding thread
     list_push_back(&t->files, &fn->file_elem);
     f->eax = fn->fd;
@@ -321,7 +322,8 @@ void sys_READDIR(struct intr_frame *f){
   struct file_node * openf = find_file(&thread_current()->files, fd);
   bool ok;
   if(openf!=NULL){
-    ok = read_dir_by_file_node(openf->file, dir_name);
+    openf->read_dir_cnt ++;
+    ok = read_dir_by_file_node(openf->file, dir_name, openf->read_dir_cnt);
   }
   f->eax = ok;
   // if (ok)
