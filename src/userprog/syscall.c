@@ -56,7 +56,7 @@ syscall_init (void)
   syscalls[SYS_READDIR] = sys_READDIR;/* Reads a directory entry. */
   syscalls[SYS_ISDIR] = sys_ISDIR;   /* Tests if a fd represents a directory. */
   syscalls[SYS_INUMBER] = sys_INUMBER; /* Returns the inode number for a fd. */
-
+  /* For cache test */
   syscalls[SYS_CACHE_FLASH] = sys_CACHE_FLASH; /* Cache flash to disk, return the number of flash block*/ 
   syscalls[SYS_CACHE_DIRTY] = sys_CACHE_DIRTY; /* Return the number of dirty cache */
 }
