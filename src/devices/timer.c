@@ -96,7 +96,8 @@ bool cmp_wake_time (const struct list_elem *a,
 }
 
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
-   be turned on. */
+   be turned on. 
+   Fix busy waiting */
 void timer_sleep(int64_t ticks)
 {
   ASSERT(intr_get_level() == INTR_ON);
@@ -182,6 +183,7 @@ timer_interrupt(struct intr_frame *args UNUSED)
   ticks++;
   thread_tick();
 
+  // wake up sleeping thread
   struct list_elem *e = list_begin(&sleep_list);
   while (e != list_end(&sleep_list))
   {
