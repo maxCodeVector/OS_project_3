@@ -5,19 +5,16 @@
 #include "tests/lib.h"
 #include "tests/filesys/base/syn-write.h"
 
-
-/* This test is to check the flush number is always less than 64 */
+/* run two flush consecutively, the first flush
+ cache number should be greater than 0, and the
+ second flush cache number should be 0.
+  */
 int
 test_main (int argc, char *argv[])
 {
   int tmp = 0;
-  // fist check
   CHECK (mkdir ("a"), "mkdir \"a\"");
-  tmp = cache_flush();
-  CHECK (tmp <= 64, "cache number <= 64");
-
-  // second check
   CHECK (create ("a/b", 512), "create \"a/b\"");
-  tmp = cache_flush();
-  CHECK (tmp <= 64, "cache number <= 64");
+  CHECK (cache_flush()>=0, "fist flush sucess");
+  CHECK (cache_flush()>=0, "second flush nothing");
 }

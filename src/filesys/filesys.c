@@ -87,7 +87,7 @@ get_next_part (char part[NAME_MAX], const char **srcp)
   the name of file/dir need to create is put in base_name.
 .*/
 static bool
-resolve_name_to_entry (const char *name,
+parse_file_path (const char *name,
                        struct dir **dirp, char base_name[NAME_MAX + 1]) 
 {
   struct dir *dir = NULL;
@@ -97,10 +97,10 @@ resolve_name_to_entry (const char *name,
   int ok;
   
   /* Find starting directory. */
-  if (name[0] == '/' || thread_current ()->wd == NULL)
+  if (name[0] == '/' || thread_current ()->cwd == NULL)
     dir = dir_open_root ();
   else
-    dir = dir_reopen (thread_current ()->wd);
+    dir = dir_reopen (thread_current ()->cwd);
   if (dir == NULL || !is_dir_exist(dir)){  // check if this directory has been removed
     /* Return failure. */
     dir_close (dir);
@@ -167,7 +167,7 @@ filesys_create (const char *name, off_t initial_size)
   char base_name[NAME_MAX + 1];
   block_sector_t inode_sector;  // new mallocate sector space to store new dir
 
-  bool success = (resolve_name_to_entry (name, &dir, base_name)
+  bool success = (parse_file_path (name, &dir, base_name)
                   && free_map_allocate (1, &inode_sector));
   if (success) 
     {
@@ -197,7 +197,7 @@ filesys_dir_create (const char *name, off_t initial_size)
   char base_name[NAME_MAX + 1];
   block_sector_t inode_sector;  // new mallocate sector space to store new dir
 
-  bool success = (resolve_name_to_entry (name, &dir, base_name)
+  bool success = (parse_file_path (name, &dir, base_name)
                   && free_map_allocate (1, &inode_sector));
   if (success) 
     {
@@ -224,8 +224,7 @@ filesys_dir_create (const char *name, off_t initial_size)
 /* modified by hya:, Opens the file with the given NAME.
    Returns the new file if successful or a null pointer
    otherwise.
-   Fails if no file named NAME exists,
-   or if an internal memory allocation fails. */
+   Fails if no file named NAME exists, in parse_file_path check if upper level directory exist. */
 struct file *
 filesys_open (const char *name)
 {
@@ -233,10 +232,7 @@ filesys_open (const char *name)
 
    if (name[0] == '/' && name[strspn (name, "/")] == '\0') 
     {
-      /* The name represents the root directory.
-         There's no name part at all, so resolve_name_to_entry()
-         would reject it entirely.
-         Special case it. */
+      /*if it is root dir */
       return file_open(inode_open (ROOT_DIR_SECTOR));
     }
   else 
@@ -244,17 +240,7 @@ filesys_open (const char *name)
       struct dir *dir;
       char base_name[NAME_MAX + 1];
 
-      // struct dir *dir = dir_open_root ();
-      // struct inode *inode = NULL;
-
-      // if (dir != NULL){
-      //   dir_lookup (dir, name, &inode);
-      // }
-      // dir_close (dir);
-
-      // return file_open (inode);
-
-      if (resolve_name_to_entry (name, &dir, base_name)) 
+      if (parse_file_path (name, &dir, base_name)) 
         {
           struct inode *inode;
           dir_lookup (dir, base_name, &inode);
@@ -266,7 +252,8 @@ filesys_open (const char *name)
     }
 }
 
-/* hya add: test if it is can move, usually test dirctory*/
+/* hya add: test if it is can move, usually test dirctory, I treat dirctory as filer, 
+since it is also inode*/
 bool can_move(const char* name){
 
   struct file * file = filesys_open (name);
@@ -299,7 +286,7 @@ filesys_remove (const char *name)
   }
   struct dir *dir;
   char base_name[NAME_MAX + 1];
-  bool success = resolve_name_to_entry (name, &dir, base_name);
+  bool success = parse_file_path (name, &dir, base_name);
   if(success){
     success = dir_remove(dir, base_name);
   }
@@ -315,9 +302,6 @@ do_format (void)
 {
   printf ("Formatting file system...");
   free_map_create ();
-  // if (!dir_create_root (ROOT_DIR_SECTOR, 16))
-  //   PANIC ("root directory creation failed");
-
 
   /* Set up root directory. */
   struct inode *inode = dir_create (ROOT_DIR_SECTOR, ROOT_DIR_SECTOR);
@@ -329,16 +313,16 @@ do_format (void)
   printf ("done.\n");
 }
 
-/* add by hya: Change current directory to NAME.
-   Return true if successful, false on failure. */
+/* add by hya: Change current directory to the given path.
+   Return true if successful, otherwise false. */
 bool
 filesys_chdir (const char *name) 
 {
   struct dir *dir = dir_open (name_to_inode (name));
   if (dir != NULL) 
     {
-      dir_close (thread_current ()->wd);
-      thread_current ()->wd = dir;
+      dir_close (thread_current ()->cwd);
+      thread_current ()->cwd = dir;
       return true;
     }
   else
@@ -347,17 +331,13 @@ filesys_chdir (const char *name)
 
 
 /* add by hya:  Resolves relative or absolute file NAME to an inode.
-   Returns an inode if successful, or a null pointer on failure.
-   The caller is responsible for closing the returned inode. */
+   Returns an inode if successful, otherwise a null pointer.*/
 static struct inode *
 name_to_inode (const char *name)
 {
   if (name[0] == '/' && name[strspn (name, "/")] == '\0') 
     {
-      /* The name represents the root directory.
-         There's no name part at all, so resolve_name_to_entry()
-         would reject it entirely.
-         Special case it. */
+      // it it as root dirtory
       return inode_open (ROOT_DIR_SECTOR);
     }
   else 
@@ -365,7 +345,7 @@ name_to_inode (const char *name)
       struct dir *dir;
       char base_name[NAME_MAX + 1];
 
-      if (resolve_name_to_entry (name, &dir, base_name)) 
+      if (parse_file_path (name, &dir, base_name)) 
         {
           struct inode *inode;
           dir_lookup (dir, base_name, &inode);

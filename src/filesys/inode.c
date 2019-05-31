@@ -111,7 +111,7 @@ inode_init (void)
 
 
 
-struct inode *
+bool
 inode_create (block_sector_t sector, off_t length, uint32_t is_file)
 {
   struct inode_disk *disk_inode = NULL;
@@ -126,7 +126,6 @@ inode_create (block_sector_t sector, off_t length, uint32_t is_file)
   disk_inode = calloc (1, sizeof *disk_inode);
   if (disk_inode != NULL)
   {
-    size_t sectors = bytes_to_data_sectors (length);
     disk_inode->length = length;
     disk_inode->magic = INODE_MAGIC;
     disk_inode-> is_file = is_file;
@@ -138,13 +137,8 @@ inode_create (block_sector_t sector, off_t length, uint32_t is_file)
     free (disk_inode);
   }
 
-  struct inode *inode = NULL;
-  if(success){
-    inode = inode_open (sector);
-    if (inode == NULL)
-      free_map_release_at (sector);
-  }
-  return inode;
+  return success;
+
 }
 
 /* Reads an inode from SECTOR

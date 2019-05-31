@@ -12,7 +12,7 @@
 #define DIR_TYPE 0 
 
 
-#define DIRECT_POINTER_NUM 12
+#define DIRECT_POINTER_NUM 100
 #define SINGLE_POINTER_NUM 1
 #define DOUBLE_POINTER_NUM 1
 #define TOTAL_POINTER_NUM (DIRECT_POINTER_NUM + SINGLE_POINTER_NUM + DOUBLE_POINTER_NUM)
@@ -26,7 +26,7 @@ struct bitmap;
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
-    block_sector_t start;               /* First data sector. */
+    // block_sector_t start;               /* First data sector. */
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
      
@@ -36,7 +36,7 @@ struct inode_disk
     uint32_t level2_ptr_index;               /* index of the level 2 pointer table */
 
     uint32_t is_file;                    /* 1 for file, 0 for dir */
-    uint32_t not_used[121 - TOTAL_POINTER_NUM];
+    uint32_t not_used[122 - TOTAL_POINTER_NUM];
   };
 
 
@@ -52,9 +52,7 @@ struct inode
 
 
     struct lock extend_lock;
-    // size_t level0_ptr_index;                  /* index of the pointer list */
-    // size_t level1_ptr_index;               /* index of the level 1 pointer table */
-    // size_t level2_ptr_index;               /* index of the level 2 pointer table */
+    
     off_t length;                       /* File size in bytes. */
     off_t length_for_read; 
 
@@ -62,7 +60,7 @@ struct inode
 void inode_init (void);
 
 struct node* inode_cache_create (block_sector_t sector, uint32_t is_file);
-struct inode * inode_create (block_sector_t sector, off_t length, uint32_t is_file);
+bool inode_create (block_sector_t sector, off_t length, uint32_t is_file);
 
 struct inode *inode_open (block_sector_t);
 struct inode *inode_reopen (struct inode *);

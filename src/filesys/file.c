@@ -10,7 +10,16 @@
 struct inode *
 file_create (block_sector_t sector, off_t length) 
 {
-  struct inode *inode = inode_create (sector, length, FILE_TYPE);
+  bool success = inode_create (sector, length, FILE_TYPE);
+
+
+ struct inode *inode = NULL;
+  if(success){
+    inode = inode_open (sector);
+    if (inode == NULL)
+      free_map_release_at (sector);
+  }
+
   if (inode != NULL && length > 0
       && inode_write_at (inode, "", 1, length - 1) != 1)
     {

@@ -22,8 +22,9 @@ struct dir_entry
   };
 
 
-// /* Creates a directory with space for ENTRY_CNT entries in the
-//    given SECTOR.  Returns true if successful, false on failure. */
+// this funvtion has been lost, we don't need it now
+/* Creates a directory with space for ENTRY_CNT entries in the
+   given SECTOR.  Returns true if successful, false on failure. */
 bool
 dir_create_root (block_sector_t sector, size_t entry_cnt)
 {
@@ -31,15 +32,19 @@ dir_create_root (block_sector_t sector, size_t entry_cnt)
 }
 
 
-/* Creates a directory in the given SECTOR.
-   The directory's parent is in PARENT_SECTOR.
-   Returns inode of created directory if successful,
-   null pointer on faiilure.
-   On failure, SECTOR is released in the free map. */
+
 struct inode *
 dir_create (block_sector_t sector, block_sector_t parent_sector)
 {
-  struct inode *inode = inode_create (sector, 2 * sizeof(struct dir_entry), DIR_TYPE);
+  bool success = inode_create (sector, 2 * sizeof(struct dir_entry), DIR_TYPE);
+ 
+
+  struct inode *inode = NULL;
+    if(success){
+      inode = inode_open (sector);
+      if (inode == NULL)
+        free_map_release_at (sector);
+    }
 
 
   if (inode != NULL) 

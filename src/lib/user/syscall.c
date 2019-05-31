@@ -183,14 +183,8 @@ inumber (int fd)
   return syscall1 (SYS_INUMBER, fd);
 }
 
-// int
-// cache_flash (void)
-// {
-//   return syscall0 (SYS_CACHE_FLASH);
-// }
-
 int
-dirty_number (void)
+cache_flush (void)
 {
-  return syscall0 (SYS_CACHE_DIRTY);
+  return syscall0 (SYS_CACHE_FLUSH);
 }

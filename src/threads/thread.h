@@ -109,7 +109,7 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 #endif
 
-    struct dir* wd;
+    struct dir* cwd;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */

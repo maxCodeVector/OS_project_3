@@ -30,8 +30,7 @@ enum
     SYS_ISDIR,                  /* Tests if a fd represents a directory. */
     SYS_INUMBER,                /* Returns the inode number for a fd. */
 
-    SYS_CACHE_FLASH,            /* Flash cache to the disk, return the flash number*/
-    SYS_CACHE_DIRTY             /* Return number of dirty cache */
+    SYS_CACHE_FLUSH,            /* Flash cache to the disk, return the flash number*/
   };
 
 #endif /* lib/syscall-nr.h */
