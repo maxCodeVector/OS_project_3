@@ -52,9 +52,9 @@ struct inode
 
 
     struct lock extend_lock;
-    size_t level0_ptr_index;                  /* index of the pointer list */
-    size_t level1_ptr_index;               /* index of the level 1 pointer table */
-    size_t level2_ptr_index;               /* index of the level 2 pointer table */
+    // size_t level0_ptr_index;                  /* index of the pointer list */
+    // size_t level1_ptr_index;               /* index of the level 1 pointer table */
+    // size_t level2_ptr_index;               /* index of the level 2 pointer table */
     off_t length;                       /* File size in bytes. */
     off_t length_for_read; 
 

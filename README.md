@@ -115,3 +115,61 @@ int get_inumber(struct file* file){
 
 
 
+
+
+### Project 3 Report
+
+1. When one process is actively reading or writing data in a buffer cache block, how are other processes prevented from evicting that block?
+
+
+
+I store all my cache_entry in a list, and cache_entry have a attribute `open_cnt` represent how many threads are using it, so when it need to replace one block, it will not replace those none-zero `open_cnt` blocks.
+
+
+
+2. During the eviction of a block from the cache, how are other processes prevented from attempting to access the block?
+
+
+
+I have a lock called `filesys-cache_lock`(It is a global cache lock). When one thread want to read or write a block, or need to replace a blok, they all need to allocated this lock. So when I have not finish evict a clock, other thread can not get the `filesys_cache_lock`, so they also can not access the block.
+
+
+
+3. If a block is currently being loaded into the cache, how are other processes prevented from also loading it into a different cache entry? How are other processes prevented from accessing the block before it is fully loaded?
+
+
+
+The cache_entry stores the block sector number. Every time when a thread want to read or write a block, it first look up it in cache by providing the corresponding sector number. Only if didn't found it, the thread will load it from disk. And like previous problem, I will acqure a lock when I load the cache entry, only when I load completely, and finish next write or read, I will release the lock. So by this way, I can prevented other process from accessing the block before it is fully loaded.
+
+
+
+4. How will your filesystem take a relative path like ../my_files/notes.txt and locate the corre- sponding directory? Also, how will you locate absolute paths like /cs162/solutions.md?
+
+
+
+The directory entry have a sectore number point to the relative inode_disk. For `..`, it  points to its father directory's inode_disk except for root dirctory . So by this way, we can found those kind of relative path file/directory.
+
+For absolute path, it check the first char of path first, if it is '/', then it open root dirctory, the find the next level path.
+
+
+
+5. Will a user process be allowed to delete a directory if it is the cwd of a running process? The test suite will accept both “yes” and “no”, but in either case, you must make sure that new files cannot be created in deleted directories.
+
+
+
+
+
+
+
+
+6. How will your syscall handlers take a file descriptor, like 3, and locate the corresponding file or directory struct?
+
+
+
+Each thread have a struct file_node list which store all open file or directrory this thread open, the `strcuct file_node`have a file descriptor which was increased automatically when new open  a file/directory.  Each time the thread provide a descriptor, then syscall will traverse the `struct file_node list`, found the coressponding file_node, then get the dir/file. 
+
+
+
+7. You are already familiar with handling memory exhaustion in C, by checking for a NULL return value from malloc. In this project, you will also need to handle diskspace exhaustion. When your filesystem is unable to allocate new disk blocks, you must have a strategy to abort the current operation and rollback to a previous good state.
+
+
