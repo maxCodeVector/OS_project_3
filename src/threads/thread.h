@@ -32,6 +32,9 @@ struct child_thread {
 };
 
 
+struct list sleep_list; // sleeping threads
+
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -122,6 +125,8 @@ struct thread
     struct list files;// the list of opened files
     struct file * executable; // the thread executable file 
     int max_fd; // the file descriptor used by the thread
+
+    int64_t wake_time; //For timer_sleep()
   };
 
 

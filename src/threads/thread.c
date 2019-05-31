@@ -100,6 +100,8 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
+  list_init(&sleep_list);
+
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -319,7 +321,9 @@ thread_exit (void)
       break;
     }
   }
-  // up the child semaphore to stop parent thread from waiting
+
+  #ifdef USERPROG
+    // up the child semaphore to stop parent thread from waiting
   sema_up(&thread_current()->child_sema);
   //close the executable file
   file_close(thread_current()->executable);
@@ -332,6 +336,8 @@ thread_exit (void)
     file_close(f->file);
     free(f);
   }
+  #endif
+
 
   // printf("exit tid %d\n", thread_current()->tid);
   /* Remove thread from all threads list, set our status to dying,

@@ -135,20 +135,6 @@ inode_create (block_sector_t sector, off_t length, uint32_t is_file)
         block_write(fs_device, sector, disk_inode);
         success = true;
       }
-
-    // if (free_map_allocate (sectors, &disk_inode->start)) 
-    //   {
-    //     block_write (fs_device, sector, disk_inode);
-    //     if (sectors > 0) 
-    //       {
-    //         static char zeros[BLOCK_SECTOR_SIZE];
-    //         size_t i;
-            
-    //         for (i = 0; i < sectors; i++) 
-    //           block_write (fs_device, disk_inode->start + i, zeros);
-    //       }
-    //     success = true; 
-    //   } 
     free (disk_inode);
   }
 
@@ -199,6 +185,7 @@ inode_open (block_sector_t sector)
   lock_init(&inode->extend_lock);
   block_read (fs_device, inode->sector, &inode->data);
   inode->length = inode->data.length;
+  inode->length_for_read = inode->data.length;
   inode->level0_ptr_index = inode->data.level0_ptr_index;
   inode->level1_ptr_index = inode->data.level1_ptr_index;
   inode->level2_ptr_index = inode->data.level2_ptr_index;
@@ -272,6 +259,14 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
 
+  off_t read_length = inode->length_for_read;
+
+  /* do not allow to read beyound the read length
+     because someone may be write beyound current length */
+  if(offset >= read_length) {
+    return bytes_read;
+  }
+
   while (size > 0) 
     {
       /* Disk sector to read, starting byte offset within sector. */
@@ -279,7 +274,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
-      off_t inode_left = inode_length (inode) - offset;
+      off_t inode_left = read_length - offset;
       int sector_left = BLOCK_SECTOR_SIZE - sector_ofs;
       int min_left = inode_left < sector_left ? inode_left : sector_left;
 
@@ -288,6 +283,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       if (chunk_size <= 0)
         break;
 
+      /* write to cache */
       struct cache_entry *c = filesys_cache_get_block(sector_idx, false);
       memcpy (buffer + bytes_read, (uint8_t *) &c->block + sector_ofs,
 	      chunk_size);
