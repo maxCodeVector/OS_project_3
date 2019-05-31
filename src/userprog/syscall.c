@@ -15,6 +15,9 @@
 #include "pagedir.h"
 #include "syscall.h"
 #include "filesys/inode.h"
+#include "filesys/file.h"
+#include "lib/user/syscall.h"
+#include "filesys/directory.h"
 
 // syscall array
 syscall_function syscalls[SYSCALL_NUMBER];
@@ -46,6 +49,12 @@ syscall_init (void)
   syscalls[SYS_SEEK] = sys_seek;
   syscalls[SYS_TELL] = sys_tell;
   syscalls[SYS_CLOSE] = sys_close;
+  /*those are syscall pro4 need*/
+  syscalls[SYS_CHDIR] = sys_CHDIR;  /* Change the current directory. */
+  syscalls[SYS_MKDIR] = sys_MKDIR;  /* Create a directory. */
+  syscalls[SYS_READDIR] = sys_READDIR;/* Reads a directory entry. */
+  syscalls[SYS_ISDIR] = sys_ISDIR;   /* Tests if a fd represents a directory. */
+  syscalls[SYS_INUMBER] = sys_INUMBER; /* Returns the inode number for a fd. */
 }
 
 // check whether page p and p+3 has been in kernel virtual memory
@@ -132,7 +141,10 @@ void sys_create(struct intr_frame * f) {
 
   acquire_file_lock();
   // thread_exit ();
-  f->eax = filesys_create((const char *)*(p + 1),*(p + 2), 1);
+  char * name = (const char *)*(p + 1);
+  off_t size = *(p + 2);
+  bool ok = filesys_create(name, size);
+  f->eax = ok;
   release_file_lock();
 }
 
@@ -161,6 +173,7 @@ void sys_open(struct intr_frame * f) {
     struct file_node *fn = malloc(sizeof(struct file_node));
     fn->fd = t->max_fd++;
     fn->file = open_f;
+    fn->read_dir_cnt = 0;
     // put in file list of the corresponding thread
     list_push_back(&t->files, &fn->file_elem);
     f->eax = fn->fd;
@@ -199,6 +212,10 @@ void sys_read(struct intr_frame * f) {
     struct file_node * open_f = find_file(&thread_current()->files, *(p + 1));
     // check whether the read file is valid
     if (open_f){
+       if(!is_really_file(open_f->file)){
+         f->eax = -1;
+         return;
+       }
       acquire_file_lock();
       f->eax = file_read(open_f->file, buffer, size);
       release_file_lock();
@@ -224,6 +241,11 @@ void sys_write(struct intr_frame * f) {
     // check whether the write file is valid
     if (openf){
       acquire_file_lock();
+      bool is_file = is_really_file(openf->file);
+      if(!is_file){
+        f->eax = -1;
+        return;
+      }
       f->eax = file_write(openf->file, buffer2, size2);
       release_file_lock();
     } else
@@ -266,5 +288,71 @@ void sys_close(struct intr_frame * f) {
     // remove file form file list
     list_remove(&openf->file_elem);
     free(openf);
+  }
+}
+
+
+
+/* Project 4 only. */
+void sys_CHDIR(struct intr_frame *f){
+  /* Change the current directory. */
+  int * p =f->esp;
+  check_func_args((void *)(p + 1), 1);
+  const char * udir = (const char *)*(p + 1);
+  f->eax = filesys_chdir(udir);
+}
+void sys_MKDIR(struct intr_frame *f){
+  /* Create a directory. */
+
+  int * p =f->esp;
+  // somthing to check address
+  const char * file_name = (const char *)*(p + 1);
+  if(strcmp(file_name, "")==0){
+    f->eax = 0;
+  }
+  bool ok = filesys_dir_create(file_name, 0);
+  f->eax = ok;
+}
+void sys_READDIR(struct intr_frame *f){
+  /* Reads a directory entry. */
+  int *p = f->esp;
+  int fd = *(p + 1);
+  const char * dir_name = (const char *)*(p + 2);
+
+  struct file_node * openf = find_file(&thread_current()->files, fd);
+  bool ok;
+  if(openf!=NULL){
+    openf->read_dir_cnt ++;
+    ok = read_dir_by_file_node(openf->file, dir_name, openf->read_dir_cnt);
+  }
+  f->eax = ok;
+  // if (ok)
+  //   copy_out (uname, name, strlen (name) + 1);
+  // return ok;
+
+}
+
+void sys_ISDIR(struct intr_frame *f){
+  /* Tests if a fd represents a directory. */
+  int * p =f->esp;
+  int fd = *(p + 1);
+  struct file_node * openf = find_file(&thread_current()->files, fd);
+  // check whether the write file is valid
+  if (openf){
+    f->eax = !is_really_file(openf->file);
+  }else{
+    f->eax = false;
+  }
+
+}
+
+void sys_INUMBER(struct intr_frame *f){
+  /* Returns the inode number for a fd. */
+  int * p =f->esp;
+  int fd = *(p + 1);
+  struct file_node * openf = find_file(&thread_current()->files, fd);
+  // check whether the write file is valid
+  if (openf){
+    f->eax = get_inumber(openf->file);
   }
 }

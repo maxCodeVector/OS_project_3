@@ -38,5 +38,6 @@ struct file_node {
     int fd;
     struct file *file;
     struct list_elem file_elem;
+    int read_dir_cnt;
 };
 #endif /* userprog/syscall.h */

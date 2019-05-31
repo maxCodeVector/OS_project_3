@@ -11,14 +11,14 @@
 
 struct list filesys_cache;                              /* cache list */
 uint32_t filesys_cache_size;                            /* current cache number of pintos */
-struct lock filesys_cache_lock;                         
+struct lock filesys_cache_lock;                         /* cache lock */                
 
 /** cache block
  * 
  * 
  * */
 struct cache_entry {
-  uint8_t block[BLOCK_SECTOR_SIZE];                     /* actual data from disk */
+  uint8_t block[BLOCK_SECTOR_SIZE];                     /* actual data from disk 64 bytes*/
   block_sector_t sector;                                /* sector on disk where the data resides */
   bool dirty;                                           /* dirty flag, true if the data was changed */
   bool accessed;                                        /* show if the cache is readed */
@@ -27,16 +27,16 @@ struct cache_entry {
 };
 
 void filesys_cache_init (void);
-struct cache_entry *block_in_cache (block_sector_t sector);
-struct cache_entry* filesys_cache_block_get (block_sector_t sector,
+void filesys_cache_flush (void);
+struct cache_entry *get_block_in_cache (block_sector_t sector);
+struct cache_entry* filesys_cache_get_block (block_sector_t sector,
 					     bool dirty);
-struct cache_entry* filesys_cache_block_evict (block_sector_t sector,
-					       bool dirty);
+struct cache_entry* cache_replace (block_sector_t sector, bool dirty);
 
 struct cache_entry *find_replace();
 
 
-void filesys_cache_write_to_disk (bool halt);
+void filesys_cache_write_to_disk (bool is_remove);
 void write_cache_back_loop (void *aux);
 void thread_func_read_ahead (void *aux);
 void spawn_thread_read_ahead (block_sector_t sector);

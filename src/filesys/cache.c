@@ -14,10 +14,18 @@ void filesys_cache_init(void)
   thread_create("filesys_cache_writeback", 0, write_cache_back_loop, NULL);
 }
 
+/**  
+ * Flushes the cache to disk.
+ * */
+void filesys_cache_flush(void) 
+{
+  filesys_cache_write_to_disk(true);
+}
+
 /* return the cache block with block sector is SECTOR 
-   return null if not found
+   return null if not found in cache
 */
-struct cache_entry *block_in_cache(block_sector_t sector)
+struct cache_entry *get_block_in_cache(block_sector_t sector)
 {
   struct cache_entry *c;
   struct list_elem *e;
@@ -34,20 +42,20 @@ struct cache_entry *block_in_cache(block_sector_t sector)
 }
 
 /* called by process, return the cache_entry with the sector number SECTOR*/
-struct cache_entry *filesys_cache_block_get(block_sector_t sector,
+struct cache_entry *filesys_cache_get_block(block_sector_t sector,
                                             bool dirty)
 {
   lock_acquire(&filesys_cache_lock);
-  struct cache_entry *c = block_in_cache(sector);
+  struct cache_entry *c = get_block_in_cache(sector);
   if (c)
   {
     c->open_cnt++;
-    c->dirty |= dirty;
+    c->dirty |= dirty; //???
     c->accessed = true;
     lock_release(&filesys_cache_lock);
     return c;
   }
-  c = filesys_cache_block_evict(sector, dirty);
+  c = cache_replace(sector, dirty);
   if (!c)
   {
     PANIC("Not enough memory for buffer cache.");
@@ -61,7 +69,7 @@ struct cache_entry *filesys_cache_block_get(block_sector_t sector,
 *  If the cache list is not full, just insert the new cache block.
 *  Otherwise choose a cache who is not opened to replace.
 */
-struct cache_entry *filesys_cache_block_evict(block_sector_t sector,
+struct cache_entry *cache_replace(block_sector_t sector,
                                               bool dirty)
 {
   struct cache_entry *c;
@@ -120,8 +128,9 @@ struct cache_entry *find_replace()
 
 /**
  * scan the cache list, if the cache is dirty, write back to the disk
+ * if IS_REMOVE is true, remove all the cache. 
  * */
-void filesys_cache_write_to_disk(bool halt)
+void filesys_cache_write_to_disk(bool is_remove)
 {
   lock_acquire(&filesys_cache_lock);
   struct list_elem *next, *e = list_begin(&filesys_cache);
@@ -134,7 +143,7 @@ void filesys_cache_write_to_disk(bool halt)
       block_write(fs_device, c->sector, &c->block);
       c->dirty = false;
     }
-    if (halt)
+    if (is_remove)
     {
       list_remove(&c->elem);
       free(c);
@@ -170,10 +179,10 @@ void thread_func_read_ahead(void *aux)
 {
   block_sector_t sector = *(block_sector_t *)aux;
   lock_acquire(&filesys_cache_lock);
-  struct cache_entry *c = block_in_cache(sector);
+  struct cache_entry *c = get_block_in_cache(sector);
   if (!c)
   {
-    filesys_cache_block_evict(sector, false);
+    cache_replace (sector, false);
   }
   lock_release(&filesys_cache_lock);
   free(aux);
