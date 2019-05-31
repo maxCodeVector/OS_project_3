@@ -18,6 +18,7 @@
 #include "filesys/file.h"
 #include "lib/user/syscall.h"
 #include "filesys/directory.h"
+#include "filesys/cache.h"
 
 // syscall array
 syscall_function syscalls[SYSCALL_NUMBER];
@@ -55,6 +56,9 @@ syscall_init (void)
   syscalls[SYS_READDIR] = sys_READDIR;/* Reads a directory entry. */
   syscalls[SYS_ISDIR] = sys_ISDIR;   /* Tests if a fd represents a directory. */
   syscalls[SYS_INUMBER] = sys_INUMBER; /* Returns the inode number for a fd. */
+
+  syscalls[SYS_CACHE_FLASH] = sys_CACHE_FLASH; /* Cache flash to disk, return the number of flash block*/ 
+  syscalls[SYS_CACHE_DIRTY] = sys_CACHE_DIRTY; /* Return the number of dirty cache */
 }
 
 // check whether page p and p+3 has been in kernel virtual memory
@@ -355,4 +359,12 @@ void sys_INUMBER(struct intr_frame *f){
   if (openf){
     f->eax = get_inumber(openf->file);
   }
+}
+
+void sys_CACHE_FLASH(struct intr_frame *f) {
+  f->eax = test_cache_flash();
+}
+
+void sys_CACHE_DIRTY(struct intr_frame *f) {
+  f->eax = test_dirty_cache();
 }

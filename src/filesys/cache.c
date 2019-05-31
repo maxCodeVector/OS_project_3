@@ -50,8 +50,8 @@ struct cache_entry *filesys_cache_get_block(block_sector_t sector,
   if (c)
   {
     c->open_cnt++;
-    c->dirty |= dirty; //???
-    c->accessed = true;
+    c->dirty |= dirty;
+    c->ref_bit = true;
     lock_release(&filesys_cache_lock);
     return c;
   }
@@ -75,6 +75,7 @@ struct cache_entry *cache_replace(block_sector_t sector,
   struct cache_entry *c;
   if (filesys_cache_size < MAX_FILESYS_CACHE_SIZE)
   {
+    /* create a new cache */
     filesys_cache_size++;
     c = malloc(sizeof(struct cache_entry));
     if (!c)
@@ -92,11 +93,12 @@ struct cache_entry *cache_replace(block_sector_t sector,
   c->sector = sector;
   block_read(fs_device, c->sector, &c->block);
   c->dirty = dirty;
-  c->accessed = true;
+  c->ref_bit = true;
   return c;
 }
 
-/* find cache in the list to be replaced */
+/* find cache in the list to be replaced 
+   use clock algorithm */
 struct cache_entry *find_replace()
 {
   struct cache_entry *replace;
@@ -109,9 +111,9 @@ struct cache_entry *find_replace()
       replace = list_entry(e, struct cache_entry, elem);
       if (replace->open_cnt == 0)
       {
-        if (replace->accessed)
+        if (replace->ref_bit)
         {
-          replace->accessed = false;
+          replace->ref_bit = false;
         }
         else
         {
@@ -163,27 +165,47 @@ void write_cache_back_loop(void *aux UNUSED)
   }
 }
 
-/* Read ahead part */
-void spawn_thread_read_ahead(block_sector_t sector)
-{
-  block_sector_t *arg = malloc(sizeof(block_sector_t));
-  if (arg)
-  {
-    *arg = sector + 1;
-    thread_create("filesys_cache_readahead", 0, thread_func_read_ahead,
-                  arg);
-  }
-}
+/* Cache flash to disk, return the number of flash block*/
+int test_cache_flash(void) {
+  int write_num = 0;
 
-void thread_func_read_ahead(void *aux)
-{
-  block_sector_t sector = *(block_sector_t *)aux;
   lock_acquire(&filesys_cache_lock);
-  struct cache_entry *c = get_block_in_cache(sector);
-  if (!c)
+  
+  struct list_elem *next, *e = list_begin(&filesys_cache);
+  while (e != list_end(&filesys_cache))
   {
-    cache_replace (sector, false);
+    next = list_next(e);
+    struct cache_entry *c = list_entry(e, struct cache_entry, elem);
+    if (c->dirty)
+    {
+      block_write(fs_device, c->sector, &c->block);
+      c->dirty = false;
+      write_num ++;
+    }
+    e = next;
   }
   lock_release(&filesys_cache_lock);
-  free(aux);
+  return write_num;
 }
+
+/* Return the number of dirty cache */
+int test_dirty_cache (void) {
+    int write_num = 0;
+
+  lock_acquire(&filesys_cache_lock);
+  
+  struct list_elem *next, *e = list_begin(&filesys_cache);
+  while (e != list_end(&filesys_cache))
+  {
+    next = list_next(e);
+    struct cache_entry *c = list_entry(e, struct cache_entry, elem);
+    if (c->dirty)
+    {
+      write_num ++;
+    }
+    e = next;
+  }
+  lock_release(&filesys_cache_lock);
+  return write_num;
+}
+

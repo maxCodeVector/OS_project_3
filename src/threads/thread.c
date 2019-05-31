@@ -322,7 +322,6 @@ thread_exit (void)
     }
   }
 
-  #ifdef USERPROG
     // up the child semaphore to stop parent thread from waiting
   sema_up(&thread_current()->child_sema);
   //close the executable file
@@ -336,7 +335,6 @@ thread_exit (void)
     file_close(f->file);
     free(f);
   }
-  #endif
 
 
   // printf("exit tid %d\n", thread_current()->tid);

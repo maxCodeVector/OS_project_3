@@ -36,6 +36,8 @@ void sys_READDIR(struct intr_frame *);/* Reads a directory entry. */
 void sys_ISDIR(struct intr_frame *);   /* Tests if a fd represents a directory. */
 void sys_INUMBER(struct intr_frame *); /* Returns the inode number for a fd. */
 
+void sys_CACHE_FLASH(struct intr_frame *); /* */
+void sys_CACHE_DIRTY(struct intr_frame *);
 
 struct file_node * find_file(struct list *, int);
 void exit(int);

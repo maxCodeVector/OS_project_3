@@ -13,6 +13,9 @@ struct list filesys_cache;                              /* cache list */
 uint32_t filesys_cache_size;                            /* current cache number of pintos */
 struct lock filesys_cache_lock;                         /* cache lock */                
 
+struct list_elem* head;                                 /* head pointer for clock */
+
+
 /** cache block
  * 
  * 
@@ -21,7 +24,7 @@ struct cache_entry {
   uint8_t block[BLOCK_SECTOR_SIZE];                     /* actual data from disk 512 bytes*/
   block_sector_t sector;                                /* sector on disk where the data resides */
   bool dirty;                                           /* dirty flag, true if the data was changed */
-  bool accessed;                                        /* show if the cache is readed */
+  bool ref_bit;                                         /* reference bit for clock algorithm */
   int open_cnt;                                         /* current opened number */
   struct list_elem elem;                                /* list element for filesys_cache */
 };
@@ -40,5 +43,8 @@ void filesys_cache_write_to_disk (bool is_remove);
 void write_cache_back_loop (void *aux);
 void thread_func_read_ahead (void *aux);
 void spawn_thread_read_ahead (block_sector_t sector);
+
+int test_cache_flash (void);
+int test_dirty_cache (void);
 
 #endif /* filesys/cache.h */
