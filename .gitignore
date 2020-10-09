@@ -54,8 +54,7 @@ dkms.conf
 *.xml
 .idea/
 
-.vscode
 src/.vscode/ipch
-
+*/cmake-build-debug
 src.pro2
 
